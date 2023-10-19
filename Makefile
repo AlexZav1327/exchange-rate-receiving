@@ -1,5 +1,5 @@
 build:
-	go build -o ./bin/currencies ./cmd/currencies/main.go
+	go build -o ./bin/currencies-service ./cmd/currencies-service/main.go
 
 fmt:
 	gofumpt -w .
@@ -11,4 +11,10 @@ lint: build fmt tidy
 	golangci-lint run ./...
 
 run:
-	go run ./cmd/currencies/main.go
+	go run ./cmd/currencies-service/main.go
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down

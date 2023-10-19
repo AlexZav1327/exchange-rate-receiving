@@ -12,20 +12,22 @@ import (
 )
 
 type Server struct {
-	host   string
-	port   int
-	Server *http.Server
-	log    *logrus.Entry
+	host    string
+	port    int
+	Server  *http.Server
+	service CurrenciesService
+	log     *logrus.Entry
 }
 
-func New(host string, port int, log *logrus.Logger) *Server {
+func New(host string, port int, service CurrenciesService, log *logrus.Logger) *Server {
 	server := Server{
-		host: host,
-		port: port,
-		log:  log.WithField("module", "http"),
+		host:    host,
+		port:    port,
+		service: service,
+		log:     log.WithField("module", "http"),
 	}
 
-	h := NewHandler(log)
+	h := NewHandler(service, log)
 	r := chi.NewRouter()
 
 	r.Route("/api/v1", func(r chi.Router) {
