@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,8 +25,17 @@ func New(host string, port int, log *logrus.Logger) *Server {
 		log:  log.WithField("module", "http"),
 	}
 
+	h := NewHandler(log)
+	r := chi.NewRouter()
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/currencies", h.getList)
+		r.Get("/currency/{id}", h.get)
+	})
+
 	server.Server = &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", host, port),
+		Handler:           r,
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 

@@ -14,7 +14,6 @@ func main() {
 	defer cancel()
 
 	logger := logrus.StandardLogger()
-
 	server := httpserver.New("", 8080, logger)
 
 	err := server.Run(ctx)
