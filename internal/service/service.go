@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/AlexZav1327/exchange-rate-receiving/internal/models"
@@ -15,7 +13,12 @@ import (
 var ErrCurrentNotFound = errors.New("no such current")
 
 type Service struct {
-	log *logrus.Entry
+	repo CurrenciesRepo
+	log  *logrus.Entry
+}
+
+type CurrenciesRepo interface {
+	SendRequest(ctx context.Context) ([]models.Currency, time.Time, error)
 }
 
 type CurrenciesData struct {
@@ -26,9 +29,10 @@ type CurrenciesData struct {
 
 var currenciesData = &CurrenciesData{} //nolint:gochecknoglobals
 
-func New(log *logrus.Logger) *Service {
+func New(repo CurrenciesRepo, log *logrus.Logger) *Service {
 	return &Service{
-		log: log.WithField("module", "service"),
+		repo: repo,
+		log:  log.WithField("module", "service"),
 	}
 }
 
@@ -36,9 +40,9 @@ func (s *Service) GetCurrenciesList(ctx context.Context) ([]models.Currency, err
 	var err error
 
 	if currenciesData.currenciesList == nil || time.Since(currenciesData.lastRequestTime).Minutes() >= 10 {
-		currenciesData.currenciesList, currenciesData.lastRequestTime, err = s.sendRequest(ctx)
+		currenciesData.currenciesList, currenciesData.lastRequestTime, err = s.repo.SendRequest(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("sendRequest: %w", err)
+			return nil, fmt.Errorf("repo.SendRequest: %w", err)
 		}
 
 		return currenciesData.currenciesList, nil
@@ -51,9 +55,9 @@ func (s *Service) GetCurrency(ctx context.Context, id string) (models.Currency, 
 	var err error
 
 	if currenciesData.currenciesList == nil || time.Since(currenciesData.lastRequestTime).Minutes() >= 10 {
-		currenciesData.currenciesList, currenciesData.lastRequestTime, err = s.sendRequest(ctx)
+		currenciesData.currenciesList, currenciesData.lastRequestTime, err = s.repo.SendRequest(ctx)
 		if err != nil {
-			return models.Currency{}, fmt.Errorf("sendRequest: %w", err)
+			return models.Currency{}, fmt.Errorf("repo.SendRequest: %w", err)
 		}
 
 		currency, err := s.extractCurrencyFromList(id)
@@ -70,40 +74,6 @@ func (s *Service) GetCurrency(ctx context.Context, id string) (models.Currency, 
 	}
 
 	return currency, nil
-}
-
-func (s *Service) sendRequest(ctx context.Context) ([]models.Currency, time.Time, error) {
-	endpoint := "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
-
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("http.NewRequestWithContext: %w", err)
-	}
-
-	request.Header.Set("Content-Type", "application/json")
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("http.DefaultClient.Do: %w", err)
-	}
-
-	defer func() {
-		err = response.Body.Close()
-		if err != nil {
-			s.log.Warningf("resp.Body.Close: %s", err)
-		}
-	}()
-
-	var currenciesList []models.Currency
-
-	err = json.NewDecoder(response.Body).Decode(&currenciesList)
-	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("json.NewDecoder.Decode: %w", err)
-	}
-
-	lastRequestTime := time.Now()
-
-	return currenciesList, lastRequestTime, nil
 }
 
 func (*Service) extractCurrencyFromList(id string) (models.Currency, error) {

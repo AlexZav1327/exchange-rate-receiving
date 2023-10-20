@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/AlexZav1327/exchange-rate-receiving/internal/repo"
 	httpserver "github.com/AlexZav1327/exchange-rate-receiving/internal/server"
 	"github.com/AlexZav1327/exchange-rate-receiving/internal/service"
 	"github.com/sirupsen/logrus"
@@ -15,7 +16,8 @@ func main() {
 	defer cancel()
 
 	logger := logrus.StandardLogger()
-	currencyService := service.New(logger)
+	currenciesRepo := repo.New(logger)
+	currencyService := service.New(currenciesRepo, logger)
 	server := httpserver.New("", 8080, currencyService, logger)
 
 	err := server.Run(ctx)
