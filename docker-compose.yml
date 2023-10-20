@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  currencies-service:
+    build:
+      context: .
+    container_name: currencies-service_container
+    ports:
+      - '8090:8090'
+
+
